@@ -3,7 +3,7 @@ services:
     name: cyclo-sense-flask-api
     runtime: python
     plan: free
-    buildCommand: pip install -r deployment/flask-api-requirements.txt && pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+    buildCommand: pip install -r deployment/flask-api-requirements.txt
     startCommand: gunicorn backend.api:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
     healthCheckPath: /health
     envVars:
