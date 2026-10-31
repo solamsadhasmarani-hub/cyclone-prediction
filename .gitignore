@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+**/node_modules/
+frontend/dist/
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+outputs/
+data/raw/
+data/sih_demo.db

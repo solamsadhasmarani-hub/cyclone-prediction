@@ -1,0 +1,16 @@
+image_path,label,event_id,split,event_type
+data\raw\detection_demo\CYC_01_01.png,1,CYC_01,validation,cyclone
+data\raw\detection_demo\CYC_01_02.png,1,CYC_01,validation,cyclone
+data\raw\detection_demo\CYC_01_03.png,1,CYC_01,validation,cyclone
+data\raw\detection_demo\CYC_02_01.png,1,CYC_02,train,cyclone
+data\raw\detection_demo\CYC_02_02.png,1,CYC_02,train,cyclone
+data\raw\detection_demo\CYC_02_03.png,1,CYC_02,train,cyclone
+data\raw\detection_demo\CYC_03_01.png,1,CYC_03,train,cyclone
+data\raw\detection_demo\CYC_03_02.png,1,CYC_03,train,cyclone
+data\raw\detection_demo\CYC_03_03.png,1,CYC_03,train,cyclone
+data\raw\detection_demo\NO_CYC_01_01.png,0,NO_CYC_01,validation,non_cyclone
+data\raw\detection_demo\NO_CYC_01_02.png,0,NO_CYC_01,validation,non_cyclone
+data\raw\detection_demo\NO_CYC_01_03.png,0,NO_CYC_01,validation,non_cyclone
+data\raw\detection_demo\NO_CYC_02_01.png,0,NO_CYC_02,train,non_cyclone
+data\raw\detection_demo\NO_CYC_02_02.png,0,NO_CYC_02,train,non_cyclone
+data\raw\detection_demo\NO_CYC_02_03.png,0,NO_CYC_02,train,non_cyclone

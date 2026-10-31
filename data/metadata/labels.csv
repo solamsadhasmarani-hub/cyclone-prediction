@@ -1,0 +1,75 @@
+image_path,group_id,cyclone_detected,imd_class
+data/processed/images/2016335N07088_20161129_1500.png,2016335N07088,1,Depression
+data/processed/images/2016335N07088_20161129_1800.png,2016335N07088,1,Depression
+data/processed/images/2016335N07088_20161129_2100.png,2016335N07088,1,Depression
+data/processed/images/2016335N07088_20161130_0000.png,2016335N07088,1,Deep Depression
+data/processed/images/2016335N07088_20161130_0300.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161130_0600.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161130_0900.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161130_1200.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161130_1500.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161130_1800.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161130_2100.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161201_0000.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161201_0300.png,2016335N07088,1,Cyclonic Storm
+data/processed/images/2016335N07088_20161201_0600.png,2016335N07088,1,Deep Depression
+data/processed/images/2016335N07088_20161201_0900.png,2016335N07088,1,Deep Depression
+data/processed/images/2016335N07088_20161201_1200.png,2016335N07088,1,Deep Depression
+data/processed/images/2016335N07088_20161201_1500.png,2016335N07088,1,Deep Depression
+data/processed/images/2016335N07088_20161201_1800.png,2016335N07088,1,Depression
+data/processed/images/2016335N07088_20161201_2100.png,2016335N07088,1,Depression
+data/processed/images/2016335N07088_20161202_0000.png,2016335N07088,1,Depression
+data/processed/images/2016341N08092_20161206_0900.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161206_1200.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161206_1500.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161206_1800.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161206_2100.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_0000.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_0300.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_0600.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_0900.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_1200.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_1500.png,2016341N08092,1,Depression
+data/processed/images/2016341N08092_20161207_1800.png,2016341N08092,1,Deep Depression
+data/processed/images/2016341N08092_20161207_2100.png,2016341N08092,1,Deep Depression
+data/processed/images/2016341N08092_20161208_0000.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_0300.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_0600.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_0900.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_1200.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_1500.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_1800.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161208_2100.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_0000.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_0300.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_0600.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_0900.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_1200.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_1500.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161209_1800.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161209_2100.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_0000.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_0300.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_0600.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_0900.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_1200.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_1500.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_1800.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161210_2100.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_0000.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_0300.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_0600.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_0900.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_1200.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_1500.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_1800.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161211_2100.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161212_0000.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161212_0300.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161212_0600.png,2016341N08092,1,Very Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161212_0900.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161212_1200.png,2016341N08092,1,Severe Cyclonic Storm
+data/processed/images/2016341N08092_20161212_1500.png,2016341N08092,1,Cyclonic Storm
+data/processed/images/2016341N08092_20161212_1800.png,2016341N08092,1,Deep Depression
+data/processed/images/2016341N08092_20161212_2100.png,2016341N08092,1,Deep Depression
+data/processed/images/2016341N08092_20161213_0000.png,2016341N08092,1,Depression
