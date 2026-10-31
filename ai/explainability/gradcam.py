@@ -1,29 +1,11 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import numpy as np
 import torch
 from PIL import Image, ImageDraw
 from torchvision import transforms
-
-
-def _ensure_demo_image(image_path: str | Path) -> Path:
-    """Generate a simple demo image when the expected sample file is absent."""
-    path = Path(image_path)
-    if path.exists():
-        return path
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    image = Image.new("RGB", (224, 224), color=(12, 23, 38))
-    draw = ImageDraw.Draw(image)
-    for ring in range(6):
-        radius = 24 + ring * 12
-        draw.ellipse((112 - radius, 112 - radius, 112 + radius, 112 + radius), outline=(90 + ring * 10, 165 + ring * 8, 200 + ring * 8), width=6 + ring)
-    draw.ellipse((96, 96, 128, 128), fill=(220, 220, 255), outline=(255, 255, 255), width=2)
-    image.save(path)
-    return path
 
 
 class GradCAM:
@@ -37,8 +19,8 @@ class GradCAM:
         self.gradients = None
 
         target_module = self._resolve_module(target_layer)
-        target_module.register_forward_hook(self._forward_hook)
-        target_module.register_full_backward_hook(self._backward_hook)
+        self._forward_handle = target_module.register_forward_hook(self._forward_hook)
+        self._backward_handle = target_module.register_full_backward_hook(self._backward_hook)
 
     def _resolve_module(self, name: str):
         if not hasattr(self.model, name):
@@ -52,21 +34,24 @@ class GradCAM:
         self.gradients = grad_output[0].detach()
 
     def generate(self, input_tensor: torch.Tensor, class_index: int | None = None) -> np.ndarray:
-        self.model.zero_grad()
-        logits = self.model(input_tensor)
-        if class_index is None:
-            class_index = int(logits.argmax(dim=1).item())
-        logits[:, class_index].backward()
+        try:
+            self.model.zero_grad()
+            logits = self.model(input_tensor)
+            if class_index is None:
+                class_index = int(logits.argmax(dim=1).item())
+            logits[:, class_index].backward()
 
-        if self.feature_maps is None or self.gradients is None:
-            raise RuntimeError("Grad-CAM could not produce a valid activation map.")
+            if self.feature_maps is None or self.gradients is None:
+                raise RuntimeError("Grad-CAM could not produce a valid activation map.")
 
-        weights = self.gradients.mean(dim=(2, 3), keepdim=True)
-        cam = (weights * self.feature_maps).sum(dim=1, keepdim=True)
-        cam = torch.relu(cam)
-        cam = cam / (cam.max() + 1e-8)
-        cam = cam.squeeze(0).squeeze(0).cpu().numpy()
-        return cam
+            weights = self.gradients.mean(dim=(2, 3), keepdim=True)
+            cam = (weights * self.feature_maps).sum(dim=1, keepdim=True)
+            cam = torch.relu(cam)
+            cam = cam / (cam.max() + 1e-8)
+            return cam.squeeze(0).squeeze(0).cpu().numpy()
+        finally:
+            self._forward_handle.remove()
+            self._backward_handle.remove()
 
 
 def _prediction_transform() -> transforms.Compose:
@@ -81,8 +66,8 @@ def _prediction_transform() -> transforms.Compose:
 
 def generate_gradcam_heatmap(model: torch.nn.Module, image_path: str | Path, class_index: int | None = None) -> np.ndarray:
     """Generate the saliency heatmap for a supplied image."""
-    resolved_path = _ensure_demo_image(image_path)
-    image = Image.open(resolved_path).convert("RGB")
+    with Image.open(image_path) as source:
+        image = source.convert("RGB")
     tensor = _prediction_transform()(image).unsqueeze(0)
     gradcam = GradCAM(model)
     return gradcam.generate(tensor, class_index=class_index)
@@ -93,10 +78,12 @@ def explain_prediction(model: torch.nn.Module, image_path: str | Path, class_nam
     if class_names is None:
         class_names = ["developing", "mature", "weakening", "dissipating"]
 
-    resolved_path = _ensure_demo_image(image_path)
-    image = Image.open(resolved_path).convert("RGB")
+    model.eval()
+    with Image.open(image_path) as source:
+        image = source.convert("RGB")
     tensor = _prediction_transform()(image).unsqueeze(0)
-    logits = model(tensor)
+    with torch.no_grad():
+        logits = model(tensor)
     probs = torch.softmax(logits, dim=1)[0]
     top_index = int(probs.argmax().item())
     heatmap = generate_gradcam_heatmap(model, image_path, class_index=top_index)
@@ -114,4 +101,4 @@ def explain_prediction(model: torch.nn.Module, image_path: str | Path, class_nam
 
 
 if __name__ == "__main__":
-    print(json.dumps({"status": "gradcam-ready"}, indent=2))
+    print("Grad-CAM helper ready.")

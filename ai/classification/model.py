@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 import torch
@@ -8,6 +9,8 @@ from PIL import Image
 from torch import nn
 from torchvision import transforms
 from torchvision.models import resnet18
+
+from ai.classification.dataset import CLASS_NAMES
 
 
 def build_classifier_model(num_classes: int = 4) -> nn.Module:
@@ -19,7 +22,15 @@ def build_classifier_model(num_classes: int = 4) -> nn.Module:
 
 def load_classifier_model(model_path: str | Path, device: str | torch.device = "cpu") -> nn.Module:
     """Load a saved classifier checkpoint."""
-    checkpoint = torch.load(model_path, map_location=device)
+    return _load_classifier_model_cached(str(Path(model_path).resolve()), str(torch.device(device)))
+
+
+@lru_cache(maxsize=4)
+def _load_classifier_model_cached(model_path: str, device: str) -> nn.Module:
+    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
+    class_names = checkpoint.get("class_names")
+    if class_names is not None and class_names != CLASS_NAMES:
+        raise ValueError("Classifier checkpoint labels do not match the supported prototype stages.")
     model = build_classifier_model(num_classes=checkpoint.get("num_classes", 4))
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(device)

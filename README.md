@@ -19,11 +19,11 @@ The repository is now in Phase 12: deployment and demo preparation.
 
 This state is intentionally demo-safe and local-first. It is a modular prototype for SIH showcase work, not an authoritative operational meteorological system.
 
-## Standalone CYCLO SENSE MobileNetV2 application
+## Standalone CYCLO SENSE model-training pipeline
 
-The repository also contains a separate Flask API and Streamlit dashboard. These additions do not replace the existing React/Vite + FastAPI + PyTorch prototype. They use a shared TensorFlow/Keras MobileNetV2 model with a binary cyclone-detection output and a separate eight-class IMD intensity output.
+The repository also contains a separate Flask API and Streamlit dashboard. These additions do not replace the existing React/Vite + FastAPI + PyTorch prototype. Both upload flows use the tracked PyTorch ResNet-18 detector and four-stage classifier checkpoints. Those checkpoints were trained on generated synthetic demo images and are not validated for real satellite imagery.
 
-**No MobileNetV2 model or real labeled training manifest is included by default.** The synthetic demo images and four-stage labels are rejected by the training script. Until a verified real dataset is prepared and training succeeds, the dashboard and API report that the model is not trained; they do not return sample predictions.
+The repository does not include a trained eight-class IMD, intensity-forecasting, track-forecasting, or risk model. The real-label manifest currently has only two cyclone groups and five of the eight IMD classes, with no non-cyclone examples, so `train_model.py` correctly refuses to train the proposed MobileNetV2 model. Uploaded-image ResNet predictions are labeled as synthetic-trained prototype output, not scientific or operational predictions.
 
 ### Dataset manifest
 
@@ -33,17 +33,20 @@ Wind measurements are not automatically converted into IMD labels. Verify the so
 
 ### Environment
 
-Use a supported Python 3.11 environment. TensorFlow versions newer than 2.10 do not support native Windows execution; on Windows, use WSL2/Ubuntu for TensorFlow training and inference. The existing project `.venv` uses Python 3.14 and is not the recommended environment for training. On native Windows/Python 3.14, the requirements install the UI/API dependencies but intentionally omit TensorFlow; the dashboard will report that inference is unavailable until you run the ML stack in WSL2.
+Use a supported Python 3.11 environment for the separate MobileNetV2 training pipeline. TensorFlow versions newer than 2.10 do not support native Windows execution; on Windows, use WSL2/Ubuntu for TensorFlow training. The existing project `.venv` uses Python 3.14; its requirements intentionally omit TensorFlow on Windows. This limitation affects `train_model.py` and `predict.py`, not the existing PyTorch ResNet-18 upload dashboards.
 
-To run the UI and API in the existing Windows project environment (without a trained model):
+To run the React/Vite dashboard with its FastAPI API:
 
 ```powershell
 cd "C:\Users\solam\Documents\c++ programs\SIH26070"
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m backend.api
+.\.venv\Scripts\python.exe scripts\start_demo.py
 ```
 
-Open a second PowerShell terminal in the project root and run:
+For the separate Streamlit dashboard, start Flask in one terminal and Streamlit in another:
+
+```powershell
+.\.venv\Scripts\python.exe -m backend.api
+```
 
 ```powershell
 .\.venv\Scripts\python.exe -m streamlit run app.py
@@ -83,7 +86,7 @@ In one terminal with the WSL environment activated:
 python -m backend.api
 ```
 
-The API listens on `http://127.0.0.1:5000`. Check `GET /health`; it reports model readiness and explicitly says `Model not trained yet. Run train_model.py.` when model artifacts are absent.
+The API listens on `http://127.0.0.1:5000`. Check `GET /health` for the available ResNet-18 prototype checkpoints and their synthetic-training provenance.
 
 ### Start the Streamlit dashboard
 

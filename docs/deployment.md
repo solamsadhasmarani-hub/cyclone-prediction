@@ -2,38 +2,44 @@
 
 This project is a demo-safe cyclone AI prototype. It uses synthetic sample data and does not provide operational cyclone warnings.
 
-## Publish both dashboards
+## Free-first deployment: Streamlit dashboard + Flask inference API
 
-The React/Vite and Streamlit dashboards are separate apps. Deploy them with the same GitHub repository connected to Vercel, Render, and Streamlit Community Cloud.
+This project has two separate dashboard stacks. For the existing Streamlit URL and image-upload feature, deploy the Streamlit dashboard on Streamlit Community Cloud and its Flask inference API on Render. The React/Vite + FastAPI stack is separate and is not required for this deployment. The Render blueprint intentionally creates only the Flask API service.
 
-### 1. Deploy both APIs on Render
+Both platforms offer no-cost options, but their free services can sleep when idle. Render documents ephemeral service storage and notes that its free instances are intended for hobby/testing, not production. Do not store uploads or other data permanently on the API filesystem. No paid plan is selected by this configuration.
 
-1. Push the project to GitHub.
-2. In Render, choose **New → Blueprint**, connect the repository, and deploy its `render.yaml`. This creates the FastAPI and Flask API services.
-3. Wait for both services to finish deploying. Check the FastAPI service at `/api/healthz` and the Flask service at `/health`.
+### 1. Deploy the Flask API on Render
 
-The Flask service deliberately uses `deployment/flask-api-requirements.txt`, which omits TensorFlow because no trained model is included. The API reports that inference is unavailable until a trained model and its metadata are deployed. If you later add a trained MobileNetV2 model, update that requirements file to include the supported TensorFlow dependency before deploying.
+1. Push this repository to GitHub, including `render.yaml`, `deployment/flask-api-requirements.txt`, and both tracked files in `models/`.
+2. In Render, choose **New → Blueprint**, connect the repository, review the `cyclo-sense-flask-api` service, and select the **Free** plan. Do not upgrade unless you explicitly choose a paid plan.
+3. Wait for the service deployment to complete. Its public API URL will look like `https://cyclo-sense-flask-api.onrender.com`. Open `<your-api-url>/health`; verify `model_ready` and the detector/classifier readiness flags are true.
 
-### 2. Deploy the React/Vite dashboard on Vercel
+The Render build installs Flask/API dependencies, then the official CPU-only PyTorch and torchvision wheels. It uses Python 3.11.11, Gunicorn, Render's `$PORT`, and `/health` for service checks. Build and inference are CPU-only. Free-service sleeping can make the first inference request slow; model startup or inference can exceed free resources, so verify with a real upload before sharing the dashboard link.
 
-1. Import the same GitHub repository into Vercel.
-2. Set **Root Directory** to `frontend` and use the Vite build defaults (`npm run build`, output directory `dist`).
-3. Add the environment variable `VITE_API_BASE_URL` with the deployed FastAPI service URL, for example `https://cyclo-sense-fastapi.onrender.com`.
-4. Deploy and copy the resulting Vercel domain.
-5. In the Render FastAPI service, set `CORS_ORIGINS` to that exact Vercel origin (scheme and hostname only, no trailing slash), for example `https://your-dashboard.vercel.app`. Keep multiple origins comma-separated if needed, then redeploy the service.
+The two ResNet-18 checkpoints were trained on generated synthetic demo images and are not validated on real satellite imagery. They provide prototype-only detection and four-stage outputs. No trained eight-class IMD, intensity-forecasting, track-forecasting, or risk model is included.
 
-### 3. Deploy the Streamlit dashboard on Streamlit Community Cloud
+### 2. Deploy the Streamlit dashboard
 
-1. Create a new app from the same GitHub repository and select `streamlit_app/app.py` as the app file. Its adjacent `requirements.txt` installs only the dashboard dependencies.
-2. In the app's **Settings → Secrets**, add:
+1. Sign in to Streamlit Community Cloud with GitHub and choose **Create app**.
+2. Select this repository, its `main` branch, and `streamlit_app/app.py` as the app file.
+3. Before or after the first deployment, open the app's **Settings → Secrets** and add the URL Render gave your Flask service:
 
    ```toml
-   CYCLO_SENSE_API_URL = "https://cyclo-sense-flask-api.onrender.com"
+   CYCLO_SENSE_API_URL = "https://your-render-api-url"
    ```
 
-3. Deploy the app and use the URL Streamlit Community Cloud provides.
+4. Save the secret, deploy/reboot the app, and open the Streamlit HTTPS URL it provides. The dashboard-only requirements are in `streamlit_app/requirements.txt`; the wrapper runs the existing root `app.py`.
 
-The free hosting tiers may sleep when idle, so the first request after a pause can take a minute. Both dashboards clearly identify demo data; uploaded-image inference remains unavailable until the respective trained model files are provided.
+The dashboard calls the API server-to-server over HTTPS, so browser CORS is not needed for this Streamlit deployment. `VITE_API_BASE_URL` is only used by the separate React dashboard.
+
+### 3. Verify upload and auto-deploy
+
+1. In Streamlit, confirm the sidebar reports that the prototype checkpoints are ready.
+2. Upload a JPG or PNG in **Analyze Satellite Image** and confirm the API returns a result and Grad-CAM when the prototype detector accepts the image.
+3. Confirm the result shows the synthetic-training warning. Do not interpret the four prototype stages as IMD intensity or operational warnings.
+4. After changes are pushed to the GitHub `main` branch, Streamlit Community Cloud and the Render Blueprint can automatically redeploy from that branch. Check both service logs if a deploy fails.
+
+These free services may sleep when idle. Render loses local filesystem changes on restart/redeploy, so do not treat uploaded files or local API storage as persistent.
 
 ## Local startup
 

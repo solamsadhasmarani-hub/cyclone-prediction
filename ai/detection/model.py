@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -20,7 +21,12 @@ def build_detector_model(num_classes: int = 2) -> nn.Module:
 
 def load_detector_model(model_path: str | Path, device: str | torch.device = "cpu") -> nn.Module:
     """Load a saved detector model checkpoint."""
-    checkpoint = torch.load(model_path, map_location=device)
+    return _load_detector_model_cached(str(Path(model_path).resolve()), str(torch.device(device)))
+
+
+@lru_cache(maxsize=4)
+def _load_detector_model_cached(model_path: str, device: str) -> nn.Module:
+    checkpoint = torch.load(model_path, map_location=device, weights_only=True)
     model = build_detector_model(num_classes=checkpoint.get("num_classes", 2))
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(device)

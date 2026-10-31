@@ -7,11 +7,13 @@ from typing import Any
 
 from flask import Flask, jsonify, request
 
-from utils.prediction import (
-    MODEL_PATH,
-    ModelUnavailableError,
-    load_model,
-    predict_image,
+from ai.inference import (
+    DATA_MODE,
+    MODEL_ARCHITECTURE,
+    MODEL_PROVENANCE,
+    PrototypeInferenceUnavailableError,
+    get_model_status,
+    predict_uploaded_image,
 )
 from utils.preprocessing import SUPPORTED_EXTENSIONS, load_rgb_image
 from utils.temporal_analysis import (
@@ -82,11 +84,24 @@ def _analyze_upload(upload: Any, metadata: dict[str, Any]) -> dict[str, Any]:
         return {"filename": filename, "status": "error", "error": str(error)}
 
     try:
-        result = predict_image(image_bytes)
+        result = predict_uploaded_image(image_bytes)
     except ValueError as error:
         return {"filename": filename, "status": "error", "error": str(error)}
 
     timestamp = metadata.get("timestamp") or timestamp_from_filename(filename)
+    stage_probabilities = result.get("stage_probabilities")
+    top_3 = (
+        [
+            {"class_name": name, "probability": probability}
+            for name, probability in sorted(
+                stage_probabilities.items(),
+                key=lambda item: item[1],
+                reverse=True,
+            )[:3]
+        ]
+        if stage_probabilities
+        else []
+    )
     result.update(
         {
             "filename": filename,
@@ -95,6 +110,10 @@ def _analyze_upload(upload: Any, metadata: dict[str, Any]) -> dict[str, Any]:
             "latitude": metadata.get("latitude"),
             "longitude": metadata.get("longitude"),
             "analysis_timestamp": datetime.now(timezone.utc).isoformat(),
+            "predicted_class": result.get("classification"),
+            "confidence": result.get("classification_confidence"),
+            "probabilities": stage_probabilities,
+            "top_3": top_3,
         }
     )
     return result
@@ -102,20 +121,29 @@ def _analyze_upload(upload: Any, metadata: dict[str, Any]) -> dict[str, Any]:
 
 @app.get("/health")
 def health() -> Any:
-    model_ready = False
-    reason = "Model not trained yet. Run train_model.py."
-    if MODEL_PATH.is_file():
-        try:
-            load_model()
-            model_ready = True
-            reason = "Trained MobileNetV2 model loaded."
-        except ModelUnavailableError as error:
-            reason = str(error)
+    model_status = get_model_status()
+    model_ready = (
+        model_status["detection_model_ready"]
+        and model_status["classification_model_ready"]
+    )
+    reason = (
+        MODEL_PROVENANCE
+        if model_ready
+        else "One or more ResNet-18 prototype checkpoints are missing."
+    )
     return jsonify(
         {
             "status": "ok",
             "model_ready": model_ready,
-            "model_path": str(MODEL_PATH),
+            "detection_model_ready": model_status["detection_model_ready"],
+            "classification_model_ready": model_status["classification_model_ready"],
+            "intensity_model_ready": False,
+            "track_model_ready": False,
+            "risk_model_ready": False,
+            "gradcam_ready": model_status["gradcam_ready"],
+            "model_architecture": MODEL_ARCHITECTURE,
+            "model_provenance": MODEL_PROVENANCE,
+            "data_mode": DATA_MODE,
             "message": reason,
         }
     )
@@ -132,7 +160,7 @@ def predict() -> Any:
         return jsonify({"error": str(error)}), 400
     try:
         result = _analyze_upload(upload, metadata)
-    except ModelUnavailableError as error:
+    except PrototypeInferenceUnavailableError as error:
         return jsonify({"error": str(error)}), 503
     if result["status"] == "error":
         return jsonify(result), 400
@@ -162,7 +190,7 @@ def predict_multiple() -> Any:
                     metadata_by_filename.get(upload.filename or "", {}),
                 )
             )
-        except ModelUnavailableError as error:
+        except PrototypeInferenceUnavailableError as error:
             return jsonify({"error": str(error)}), 503
 
     valid_observations = [

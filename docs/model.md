@@ -38,7 +38,7 @@ This proposed pipeline is not implemented in the current prototype. Dashboard pr
 - Grad-CAM-style visualization for model interpretability
 - heatmap extraction from the final convolutional feature maps
 - explanation output describing the dominant image regions used by the model
-- demo-only synthetic image support when no real sample exists
+- explanations generated only from an explicitly supplied image
 
 ## Phase 5
 

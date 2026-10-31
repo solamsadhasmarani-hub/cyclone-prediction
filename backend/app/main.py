@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from io import BytesIO
-from pathlib import Path
-import tempfile
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from PIL import Image, UnidentifiedImageError
 
-from ai.classification.model import predict_image as predict_classification
-from ai.classification.dataset import CLASS_NAMES
-from ai.detection.model import predict_image as predict_detection
+from ai.inference import (
+    PrototypeInferenceUnavailableError,
+    get_model_status,
+    predict_uploaded_image,
+)
 from backend.app.config import settings
 from backend.app.services.dashboard import build_demo_dashboard
 
@@ -45,8 +45,9 @@ class AnalyzeImageResponse(BaseModel):
     longitude: float | None = None
     wind_speed_kmh: float | None = None
     evolution_status: str | None = None
-    model_architecture: str = "ResNet-18 synthetic prototype"
-    data_mode: str = "prototype model inference"
+    model_architecture: str
+    model_provenance: str
+    data_mode: str
     explanation_image: str | None = None
     status: str = "success"
 
@@ -58,12 +59,25 @@ def health_check() -> dict[str, str]:
 
 @app.get("/api/models/status")
 def model_status() -> dict[str, bool | str]:
-    return build_demo_dashboard()["model_status"]  # type: ignore[return-value]
+    return get_model_status()
 
 
 @app.get("/api/dashboard")
 def dashboard() -> dict[str, object]:
-    return build_demo_dashboard()
+    payload = build_demo_dashboard()
+    status = get_model_status()
+    payload["model_status"] = status
+    payload["model_capabilities"] = {
+        "uploaded_image_detection": status["detection_model_ready"],
+        "four_stage_prototype_classification": status["classification_model_ready"],
+        "imd_intensity_estimation": False,
+        "track_forecasting": False,
+        "gradcam": status["gradcam_ready"],
+        "risk_assessment": False,
+    }
+    payload["model_information"]["available_prototype_architecture"] = status["model_architecture"]
+    payload["model_information"]["model_provenance"] = status["model_provenance"]
+    return payload
 
 
 @app.post("/api/analyze-image", response_model=AnalyzeImageResponse)
@@ -75,67 +89,21 @@ async def analyze_image(file: UploadFile = File(...)) -> AnalyzeImageResponse:
     if len(file_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Image must be 10 MB or smaller")
 
-    detection_model = settings.project_root / "models" / "cyclone_detector_resnet18.pt"
-    classification_model = settings.project_root / "models" / "cyclone_classifier_resnet18.pt"
-    if not detection_model.is_file() or not classification_model.is_file():
-        raise HTTPException(status_code=503, detail="Prototype inference checkpoints are not available")
-
     try:
         with Image.open(BytesIO(file_bytes)) as uploaded_image:
             uploaded_image.verify()
-    except (UnidentifiedImageError, OSError) as error:
+    except (UnidentifiedImageError, OSError, ValueError) as error:
         raise HTTPException(status_code=400, detail="Uploaded file is not a valid image") from error
 
-    raw_dir = settings.raw_data_dir
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    temp_path: Path | None = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            suffix=".upload",
-            prefix="cyclone-analysis-",
-            dir=raw_dir,
-            delete=False,
-        ) as temporary_file:
-            temporary_file.write(file_bytes)
-            temp_path = Path(temporary_file.name)
+        result = predict_uploaded_image(file_bytes)
+    except PrototypeInferenceUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
-        detection_result = predict_detection(temp_path, detection_model)
-        classification_result = None
-        if detection_result["cyclone_detected"]:
-            classification_result = predict_classification(
-                temp_path,
-                classification_model,
-                class_names=CLASS_NAMES,
-            )
-
-        return AnalyzeImageResponse(
-            cyclone_detected=bool(detection_result["cyclone_detected"]),
-            detection_confidence=float(detection_result["confidence"]),
-            classification=(
-                str(classification_result["classification"])
-                if classification_result is not None
-                else None
-            ),
-            classification_confidence=(
-                float(classification_result["confidence"])
-                if classification_result is not None
-                else None
-            ),
-            stage_probabilities=(
-                {
-                    str(name): float(probability)
-                    for name, probability in classification_result["class_probabilities"].items()
-                }
-                if classification_result is not None
-                else None
-            ),
-            analysis_timestamp=datetime.now(timezone.utc).isoformat(),
-            status="success",
-        )
-    finally:
-        if temp_path is not None:
-            temp_path.unlink(missing_ok=True)
+    result["analysis_timestamp"] = datetime.now(timezone.utc).isoformat()
+    return AnalyzeImageResponse(**result)
 
 
 @app.get("/api/cyclones")
@@ -153,6 +121,7 @@ def get_cyclone(cyclone_id: str) -> dict[str, str]:
 def get_track(cyclone_id: str) -> dict[str, object]:
     return {
         "cyclone_id": cyclone_id,
+        "data_mode": "DEMO DATA — NOT A MODEL FORECAST",
         "predicted_track": [{"hours": 12, "latitude": 15.4, "longitude": 82.8}],
         "historical_track": [{"hours": 0, "latitude": 12.2, "longitude": 80.8}],
     }
@@ -162,6 +131,7 @@ def get_track(cyclone_id: str) -> dict[str, object]:
 def get_intensity(cyclone_id: str) -> dict[str, object]:
     return {
         "cyclone_id": cyclone_id,
+        "data_mode": "DEMO DATA — NOT A MODEL FORECAST",
         "current_intensity": 98,
         "predicted_intensity": 108,
         "prediction_horizon_hours": 12,

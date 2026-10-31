@@ -126,7 +126,10 @@ def _add_observation_details(
     return item
 
 
-def _render_probabilities(probabilities: dict[str, float]) -> None:
+def _render_probabilities(
+    probabilities: dict[str, float],
+    title: str = "Prototype stage probabilities",
+) -> None:
     figure = go.Figure(
         go.Bar(
             x=[float(probabilities.get(name, 0.0)) * 100 for name in IMD_CLASSES],
@@ -152,6 +155,7 @@ def _render_probabilities(probabilities: dict[str, float]) -> None:
         font=dict(color="#dceaf5"),
         showlegend=False,
     )
+    st.markdown(f"**{title}**")
     st.plotly_chart(figure, use_container_width=True)
 
 
@@ -171,26 +175,29 @@ def _render_prediction(item: dict[str, Any]) -> None:
         if item.get("status") == "error":
             st.error(item.get("error", "Image analysis failed."))
             return
+        st.caption(item.get("data_mode", "Prototype model output"))
+        st.warning(item.get("model_provenance", "This model output is not validated on real satellite imagery."))
         if item.get("cyclone_detected") is False:
             st.error("Non-Cyclone Image")
             st.metric("Detection confidence", _format_confidence(item.get("detection_confidence")))
-            st.caption("Intensity classification was skipped for this image.")
+            st.caption("Prototype stage classification was skipped because this model did not detect a cyclone.")
             return
-        if not item.get("probabilities"):
-            st.warning("The API did not return intensity probabilities.")
+        stage_probabilities = item.get("stage_probabilities") or item.get("probabilities")
+        if not stage_probabilities:
+            st.warning("The API did not return prototype stage probabilities.")
             return
 
-        st.success("Cyclone detected")
+        st.success("Cyclone detected by the prototype model")
         c1, c2, c3 = st.columns(3)
-        c1.metric("IMD intensity", item.get("predicted_class", "—"))
+        c1.metric("Prototype stage", item.get("classification") or item.get("predicted_class") or "—")
         c2.metric("Confidence", _format_confidence(item.get("confidence")))
         c3.metric("Detection", _format_confidence(item.get("detection_confidence")))
-        st.caption(f"Source: {item.get('data_mode', 'unknown')}")
-        st.markdown("**Top 3 predictions**")
+        st.markdown("**Top prototype stages**")
         for rank, prediction in enumerate(item.get("top_3", []), start=1):
             st.write(f"{rank}. {prediction['class_name']} — {_format_confidence(prediction['probability'])}")
-        st.markdown("**Eight-class probability distribution**")
-        _render_probabilities(item["probabilities"])
+        _render_probabilities(stage_probabilities)
+        if item.get("explanation_image"):
+            st.image(item["explanation_image"], caption="Grad-CAM for the prototype stage prediction")
 
 
 def _render_temporal(observations: list[dict[str, Any]]) -> None:
@@ -364,7 +371,7 @@ def _render_dashboard(health: dict[str, Any], observations: list[dict[str, Any]]
         else:
             st.warning(health.get("message", "Model not trained yet. Run train_model.py."))
     else:
-        st.success("MobileNetV2 model is ready. Uploaded-image results are real model inference.")
+        st.success("ResNet-18 prototype checkpoints are available. Results are not validated on real satellite imagery.")
 
     ordered = get_observations()
     latest = ordered[-1] if ordered else {}
@@ -458,7 +465,7 @@ def _render_analysis() -> None:
                 for image in images
                 if any(upload[1][0] == image.name for upload in files)
             ]
-            with st.spinner("Sending images to the MobileNetV2 inference API…"):
+            with st.spinner("Running the ResNet-18 prototype inference API…"):
                 try:
                     response = requests.post(
                         f"{API_URL}/predict/multiple",
@@ -558,7 +565,7 @@ def main() -> None:
     page = st.sidebar.radio("Navigation", pages, label_visibility="collapsed")
     st.sidebar.markdown("---")
     if health.get("model_ready"):
-        st.sidebar.success("MODEL READY")
+        st.sidebar.success("PROTOTYPE MODELS READY")
     elif health.get("status") == "unavailable":
         st.sidebar.error("BACKEND OFFLINE")
     else:
@@ -582,9 +589,9 @@ def main() -> None:
             """
             **CYCLO SENSE** is a Smart India Hackathon SIH26070 prototype for satellite-image cyclone analysis.
 
-            - The shared MobileNetV2 backbone has a separate binary cyclone-detection head and an eight-class IMD intensity head.
-            - A non-cyclone result skips intensity classification.
-            - The model and UI require verified, real labeled examples; this repository's synthetic demo sets are deliberately excluded from training.
+            - The available ResNet-18 detector and four-stage classifier were trained on generated synthetic images.
+            - Their outputs and Grad-CAM maps are prototype-only and have not been validated on real satellite imagery.
+            - No trained eight-class IMD, intensity-forecasting, track-forecasting, or risk model is available.
             - Observations in this dashboard are generated only from successful API inference in the current browser session.
             - Time-series trends require timestamps. Track plots require valid latitude and longitude metadata.
 

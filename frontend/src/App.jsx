@@ -112,6 +112,7 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisError, setAnalysisError] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisHistory, setAnalysisHistory] = useState([]);
 
   async function loadDashboard() {
     setIsLoading(true);
@@ -149,7 +150,19 @@ function App() {
     setAnalysisError('');
     setAnalysisResult(null);
     try {
-      setAnalysisResult(await analyzeSatelliteImage(selectedFile));
+      const result = await analyzeSatelliteImage(selectedFile);
+      setAnalysisResult(result);
+      setAnalysisHistory((items) => [
+        {
+          filename: selectedFile.name,
+          cyclone_detected: result.cyclone_detected,
+          classification: result.classification,
+          classification_confidence: result.classification_confidence,
+          analysis_timestamp: result.analysis_timestamp,
+          data_mode: result.data_mode,
+        },
+        ...items,
+      ].slice(0, 20));
     } catch (error) {
       setAnalysisError(error.message || 'Image analysis failed.');
     } finally {
@@ -205,6 +218,17 @@ function App() {
         </section>
 
         {isDemo && <p className="demo-banner">DEMO MODE — synthetic sample data; not live meteorological observations or official warnings.</p>}
+
+        <section className="panel">
+          <div className="panel-header"><h3>Model capability status</h3><span className="source-badge">CHECKPOINT-BASED</span></div>
+          <div className="result-list">
+            <div><span>Cyclone detection prototype</span><strong>{dashboard.model_status?.detection_model_ready ? 'Checkpoint available' : 'Unavailable'}</strong></div>
+            <div><span>Four-stage prototype classification</span><strong>{dashboard.model_status?.classification_model_ready ? 'Synthetic-trained only' : 'Unavailable'}</strong></div>
+            <div><span>Grad-CAM</span><strong>{dashboard.model_status?.gradcam_ready ? 'Prototype explanation available' : 'Unavailable'}</strong></div>
+            <div><span>Eight-class IMD, intensity forecast, track forecast, risk</span><strong>Unavailable — no trained artifacts</strong></div>
+          </div>
+          {dashboard.model_status?.model_provenance && <p className="demo-note">{dashboard.model_status.model_provenance}</p>}
+        </section>
 
         <section className="content-grid">
           <ProbabilityDistribution
@@ -272,12 +296,6 @@ function App() {
   function renderAnalysis() {
     const result = analysisResult;
     const resultHasImdProbabilities = Boolean(result?.imd_probabilities);
-    const uploadProbabilities = resultHasImdProbabilities
-      ? Object.entries(result.imd_probabilities).map(([class_name, probability]) => ({
-          class_name,
-          probability: probability <= 1 ? probability * 100 : probability,
-        }))
-      : dashboard.imd_intensity_probabilities;
 
     return (
       <section className="page-content">
@@ -334,23 +352,47 @@ function App() {
             ) : (
               <p className="empty-state">Choose an image to run the available prototype analysis.</p>
             )}
-            <p className="demo-note">The uploaded-image API reports prototype model output only. Missing IMD class, coordinates, wind, or evolution values are not inferred or filled with sample values.</p>
+            {result?.model_provenance && <p className="demo-note">{result.model_provenance}</p>}
+            <p className="demo-note">IMD intensity, wind speed, coordinates, evolution, and risk are shown only when supported by a model or supplied observation data.</p>
           </section>
         </div>
-        <ProbabilityDistribution
-          probabilities={uploadProbabilities}
-          source={resultHasImdProbabilities ? 'model' : dashboard.probabilities_source}
-          title={resultHasImdProbabilities ? 'IMD probabilities returned by model' : 'IMD probability reference · dashboard data'}
-          note={resultHasImdProbabilities ? null : 'Dashboard reference probabilities are not inferred from the uploaded image.'}
-        />
+        {resultHasImdProbabilities ? (
+          <ProbabilityDistribution
+            probabilities={Object.entries(result.imd_probabilities).map(([class_name, probability]) => ({
+              class_name,
+              probability: probability <= 1 ? probability * 100 : probability,
+            }))}
+            source="model"
+            title="IMD probabilities returned by model"
+          />
+        ) : result ? (
+          <section className="panel">
+            <h3>IMD intensity result unavailable</h3>
+            <p>The available classifier only predicts four synthetic development stages; it does not produce an IMD class.</p>
+          </section>
+        ) : (
+          <ProbabilityDistribution
+            probabilities={dashboard.imd_intensity_probabilities}
+            source={dashboard.probabilities_source}
+            title="IMD probability reference · dashboard demo"
+            note="These illustrative values are demo data and are not predictions for an uploaded image."
+          />
+        )}
         {result?.stage_probabilities && (
           <section className="panel">
-            <div className="panel-header"><h3>Prototype four-stage probabilities</h3><span className="source-badge source-model">MODEL OUTPUT</span></div>
+            <div className="panel-header"><h3>Four synthetic prototype stages</h3><span className="source-badge source-model">{result.data_mode || 'PROTOTYPE OUTPUT'}</span></div>
             <div className="stage-probabilities">
               {Object.entries(result.stage_probabilities).map(([name, probability]) => (
                 <div key={name}><span>{name}</span><strong>{formatConfidence(probability)}</strong></div>
               ))}
             </div>
+          </section>
+        )}
+        {result?.explanation_image && (
+          <section className="panel">
+            <div className="panel-header"><h3>Grad-CAM explanation</h3><span className="source-badge source-model">PROTOTYPE ONLY</span></div>
+            <p className="demo-note">Highlighted regions show where the synthetic-trained classifier focused; this is not a validated meteorological explanation.</p>
+            <img className="image-preview" src={result.explanation_image} alt="Grad-CAM heatmap for the prototype stage prediction" />
           </section>
         )}
       </section>
@@ -373,7 +415,8 @@ function App() {
   function renderClassification() {
     return (
       <section className="page-content">
-        <div className="page-title"><p className="eyebrow">Primary output · eight IMD classes</p><h2>Intensity Classification</h2></div>
+        <div className="page-title"><p className="eyebrow">Demo reference · not an uploaded-image prediction</p><h2>Intensity Classification</h2></div>
+        <p className="demo-banner">No trained IMD intensity classifier is available. The existing ResNet-18 predicts four synthetic stages only.</p>
         <div className="hero-card classification-hero">
           <div><span className="muted-copy">Current demo classification</span><h2>{selectedCyclone.imd_classification}</h2><p>Confidence: {formatConfidence(selectedCyclone.classification_confidence)} · DEMO DATA</p></div>
           <div className="mini-panel"><span>Supporting wind speed</span><strong>{selectedCyclone.wind_speed_kmh} km/h</strong></div>
@@ -398,7 +441,26 @@ function App() {
   function renderHistory() {
     return (
       <section className="page-content">
-        <div className="page-title"><p className="eyebrow">Past records · not live predictions</p><h2>Historical Cyclones</h2></div>
+        <div className="page-title"><p className="eyebrow">Current browser session</p><h2>Prediction History</h2></div>
+        <section className="panel">
+          <h3>Uploaded image analyses</h3>
+          {analysisHistory.length ? (
+            <div className="historical-list">
+              {analysisHistory.map((item, index) => (
+                <article className="panel history-card" key={`${item.analysis_timestamp}-${index}`}>
+                  <span className="source-badge">{item.data_mode || 'PROTOTYPE MODEL'}</span>
+                  <h3>{item.filename}</h3>
+                  <p>Cyclone detected: <strong>{item.cyclone_detected ? 'Yes' : 'No'}</strong></p>
+                  <p>Prototype stage: <strong>{item.classification || 'Not classified'}</strong> · {formatConfidence(item.classification_confidence)}</p>
+                  <time>{item.analysis_timestamp ? new Date(item.analysis_timestamp).toLocaleString('en-GB', { timeZone: 'UTC' }) : 'Timestamp unavailable'} UTC</time>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">No successful image analyses in this browser session.</p>
+          )}
+        </section>
+        <div className="page-title"><p className="eyebrow">Past records · demo only</p><h2>Sample Historical Records</h2></div>
         <p className="demo-banner">These are synthetic historical examples, not authoritative records.</p>
         <div className="historical-list">
           {dashboard.historical_cyclones.map((cyclone) => (
@@ -448,6 +510,10 @@ function App() {
             </article>
           ))}
         </div>
+        <section className="panel">
+          <h3>Risk assessment unavailable</h3>
+          <p>No trained risk model or verified live hazard data is available. The demo notifications above are not operational alerts.</p>
+        </section>
       </section>
     );
   }
@@ -483,9 +549,9 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-model-note">
-          <span>PROPOSED MODEL</span>
-          <strong>MobileNetV2</strong>
-          <small>Transfer learning · 8 IMD classes</small>
+          <span>AVAILABLE CHECKPOINTS</span>
+          <strong>ResNet-18 prototype</strong>
+          <small>Binary detection + four synthetic stages</small>
         </div>
       </aside>
 
@@ -534,7 +600,7 @@ function ModelInformation({ information }) {
         <div><span>Current prototype</span><strong>{information.current_prototype_architecture} · {information.current_prototype_output}</strong></div>
       </div>
       {!information.proposed_model_implemented && (
-        <p className="demo-note">The proposed MobileNetV2 eight-class model is not implemented in the current prototype. The existing ResNet-18 baseline remains unchanged; demo IMD probabilities are illustrative.</p>
+        <p className="demo-note">The proposed MobileNetV2 eight-class model is not implemented. Existing ResNet-18 checkpoints were trained on synthetic images; the dashboard’s IMD probabilities remain illustrative demo data.</p>
       )}
     </section>
   );

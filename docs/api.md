@@ -19,6 +19,8 @@ Implemented demo endpoints:
 
 `POST /api/analyze-image` accepts an image up to 10 MB and returns available ResNet-18 prototype detection and four-stage classification fields. It does not return an eight-class IMD classification, wind speed, coordinates, or temporal evolution; those fields remain unavailable rather than being inferred. The existing classifier was trained on synthetic data. The proposed MobileNetV2 eight-class model is not yet implemented.
 
+Successful cyclone detections also include a Grad-CAM overlay for the four-stage prototype classifier. The response includes `data_mode` and `model_provenance`; the detector and classifier checkpoints were trained on generated synthetic images and have not been validated on real satellite imagery. `GET /api/models/status` reports the checkpoint-backed prototype capabilities; intensity, track forecasting, and risk assessment are unavailable without trained artifacts.
+
 The PostgreSQL layer introduced in Phase 8 defines the database model structure, but the dashboard payload currently uses centralized demo data rather than database observations.
 
 These endpoints are intended for local development and prototype validation, not operational forecasting or warnings.

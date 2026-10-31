@@ -75,12 +75,16 @@ def test_training_requires_real_manifest_instead_of_falling_back_to_demo_data(tm
         load_manifest(tmp_path / "missing.csv")
 
 
-def test_flask_health_reports_untrained_model_and_upload_route_does_not_fake_results():
+def test_flask_health_reports_prototype_model_provenance_and_upload_runs_checkpoint():
     client = app.test_client()
     health = client.get("/health")
     assert health.status_code == 200
-    assert health.json["model_ready"] is False
-    assert health.json["message"] == "Model not trained yet. Run train_model.py."
+    assert health.json["model_ready"] is True
+    assert health.json["detection_model_ready"] is True
+    assert health.json["classification_model_ready"] is True
+    assert health.json["intensity_model_ready"] is False
+    assert health.json["track_model_ready"] is False
+    assert "not been validated on real satellite imagery" in health.json["message"]
 
     upload = BytesIO()
     Image.new("RGB", (32, 32), color=(10, 20, 30)).save(upload, format="PNG")
@@ -89,8 +93,10 @@ def test_flask_health_reports_untrained_model_and_upload_route_does_not_fake_res
         data={"file": (BytesIO(upload.getvalue()), "image.png")},
         content_type="multipart/form-data",
     )
-    assert response.status_code == 503
-    assert response.json["error"] == "Model not trained yet. Run train_model.py."
+    assert response.status_code == 200
+    assert response.json["data_mode"] == "SYNTHETIC-TRAINED PROTOTYPE INFERENCE"
+    assert response.json["model_provenance"] == health.json["model_provenance"]
+    assert isinstance(response.json["cyclone_detected"], bool)
 
 
 def test_flask_requires_image_upload():
